@@ -1,5 +1,5 @@
 export const CONFIG = {
-  BACKEND_URL: "http://192.168.0.110:5000",
+  BACKEND_URL: "http://192.168.0.110:5001",
   TOTAL_PHOTOS: 20,
   CAPTURE_INTERVAL_MS: 1500,
 };
