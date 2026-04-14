@@ -15,7 +15,7 @@ import {
 } from "react-native-vision-camera";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { uploadFrames } from "../services/api.service";
+import { uploadFrames } from "../services/api";
 import { CONFIG } from "../constants/config";
 import CaptureGuide from "../components/CaptureGuide";
 import ProgressBar from "../components/ProgressBar";
