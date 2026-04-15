@@ -18,4 +18,15 @@ buildscript {
     }
 }
 
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+        mavenLocal()
+        maven { url 'https://www.jitpack.io' }
+        // Add Maven Central for async-storage
+        maven { url 'https://repo.maven.apache.org/maven2' }
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
