@@ -3,7 +3,7 @@ import { CONFIG } from "../constants/config";
 
 const api = axios.create({
   baseURL: CONFIG.BACKEND_URL,
-  timeout: 120000,
+  timeout: 300000,
 });
 
 export const uploadFrames = async (
