@@ -6,14 +6,14 @@ const api = axios.create({
   timeout: 300000,
 });
 
-export const uploadFrames = async (
+export const uploadImages = async (
   photos: string[],
   onProgress?: (percent: number) => void
 ) => {
   const formData = new FormData();
 
   photos.forEach((photoPath, index) => {
-    formData.append("frames", {
+    formData.append("images", {
       uri: `file://${photoPath}`,
       name: `frame_${index}.jpg`,
       type: "image/jpeg",
