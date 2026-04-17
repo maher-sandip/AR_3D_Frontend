@@ -1,5 +1,5 @@
-import axios from "axios";
-import { CONFIG } from "../constants/config";
+import axios from 'axios';
+import { CONFIG } from '../constants/config';
 
 const api = axios.create({
   baseURL: CONFIG.BACKEND_URL,
@@ -8,24 +8,25 @@ const api = axios.create({
 
 export const uploadImages = async (
   photos: string[],
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
 ) => {
   const formData = new FormData();
 
   photos.forEach((photoPath, index) => {
-    formData.append("images", {
-      uri: `file://${photoPath}`,
+    formData.append('images', {
+      // uri: `file://${photoPath}`,
+      uri: photoPath.startsWith('file://') ? photoPath : `file://${photoPath}`,
       name: `frame_${index}.jpg`,
-      type: "image/jpeg",
+      type: 'image/jpeg',
     } as any);
   });
 
   try {
-    const response = await api.post("/api/video/scan", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-      onUploadProgress: (e) => {
+    const response = await api.post('/api/video/scan', formData, {
+       headers: {
+    'Content-Type': 'multipart/form-data',
+  },
+      onUploadProgress: e => {
         if (e.total && onProgress) {
           const percent = Math.round((e.loaded * 100) / e.total);
           onProgress(percent);
@@ -33,10 +34,10 @@ export const uploadImages = async (
       },
     });
 
-    return response.data;
 
+    return response.data;
   } catch (error: any) {
-    console.error("❌ API ERROR:", error?.response?.data || error.message);
+    console.error('❌ API ERROR:', error?.response?.data || error.message);
     throw error;
   }
 };

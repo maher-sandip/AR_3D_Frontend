@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import axios from 'axios';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,32 +8,32 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
-} from "react-native";
+} from 'react-native';
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
-} from "react-native-vision-camera";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/AppNavigator";
-import { uploadFrames } from "../services/api";
-import { CONFIG } from "../constants/config";
+} from 'react-native-vision-camera';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { uploadImages } from '../services/api';
+import { CONFIG } from '../constants/config';
 
-import CaptureGuide from "../components/CaptureGuide";
-import ProgressBar from "../components/ProgressBar";
+import CaptureGuide from '../components/CaptureGuide';
+import ProgressBar from '../components/ProgressBar';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, "Scanner">;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Scanner'>;
 };
 
-type Status = "idle" | "scanning" | "processing" | "uploading" | "error";
+type Status = 'idle' | 'scanning' | 'processing' | 'uploading' | 'error';
 
 const ScannerScreen: React.FC<Props> = ({ navigation }) => {
   const camera = useRef<Camera>(null);
   const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice("back");
+  const device = useCameraDevice('back');
 
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<Status>('idle');
   const [capturedCount, setCapturedCount] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -41,6 +42,13 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     if (!hasPermission) requestPermission();
     return () => stopCapture();
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get('https://ar-3d-backend.onrender.com')
+      .then(res => console.log('✅ BACKEND OK:', res.data))
+      .catch(err => console.log('❌ BACKEND FAIL:', err.message));
   }, []);
 
   const stopCapture = () => {
@@ -53,7 +61,7 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
   const startScan = useCallback(async () => {
     if (!camera.current) return;
 
-    setStatus("scanning");
+    setStatus('scanning');
     setCapturedCount(0);
     photosRef.current = [];
 
@@ -66,40 +74,46 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
 
       try {
         const photo = await camera.current!.takePhoto({
-          flash: "off",
+          flash: 'off',
         });
         photosRef.current.push(photo.path);
         setCapturedCount(photosRef.current.length);
       } catch (e) {
-        console.warn("Capture error:", e);
+        console.warn('Capture error:', e);
       }
     }, CONFIG.CAPTURE_INTERVAL_MS);
   }, []);
 
   const processPhotos = async (photos: string[]) => {
     try {
-      setStatus("processing");
+      setStatus('processing');
 
-      const result = await uploadFrames(photos, (percent) => {
-        setStatus("uploading");
+      const result = await uploadImages(photos, percent => {
+        setStatus('uploading');
         setUploadProgress(percent);
       });
 
-      if (result.success && result.glbUrl) {
-        navigation.replace("Viewer", {
-          glbUrl: result.glbUrl
+      if (result.success && result.modelUrl) {
+        navigation.replace('Viewer', {
+          glbUrl: result.modelUrl,
         });
       } else {
-        throw new Error("No GLB URL returned");
+        throw new Error('No GLB URL returned');
       }
     } catch (err: any) {
-      console.error(err);
-      setStatus("error");
-      Alert.alert(
-        "Failed",
-        "Could not create 3D model. Make sure backend is running.",
-        [{ text: "Try Again", onPress: () => setStatus("idle") }]
-      );
+      console.error('❌ FULL ERROR:', err);
+
+      setStatus('error');
+
+      const backendMessage =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err.message ||
+        'Something went wrong';
+
+      Alert.alert('Processing Failed', backendMessage, [
+        { text: 'Try Again', onPress: () => setStatus('idle') },
+      ]);
     }
   };
 
@@ -132,13 +146,12 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
         ref={camera}
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={status === "idle" || status === "scanning"}
+        isActive={status === 'idle' || status === 'scanning'}
         photo={true}
       />
 
       {/* Dark overlay */}
       <View style={styles.overlay}>
-
         {/* Top bar */}
         <View style={styles.topBar}>
           <TouchableOpacity
@@ -151,39 +164,39 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.backText}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.topTitle}>
-            {status === "idle" && "Ready to scan"}
-            {status === "scanning" && `Capturing ${capturedCount} / ${CONFIG.TOTAL_PHOTOS}`}
-            {status === "processing" && "Creating 3D model..."}
-            {status === "uploading" && `Uploading ${uploadProgress}%`}
-            {status === "error" && "Something went wrong"}
+            {status === 'idle' && 'Ready to scan'}
+            {status === 'scanning' &&
+              `Capturing ${capturedCount} / ${CONFIG.TOTAL_PHOTOS}`}
+            {status === 'processing' && 'Creating 3D model...'}
+            {status === 'uploading' && `Uploading ${uploadProgress}%`}
+            {status === 'error' && 'Something went wrong'}
           </Text>
           <View style={{ width: 36 }} />
         </View>
 
         {/* Center guide */}
-        {(status === "idle" || status === "scanning") && (
+        {(status === 'idle' || status === 'scanning') && (
           <View style={styles.center}>
-            <CaptureGuide isCapturing={status === "scanning"} />
+            <CaptureGuide isCapturing={status === 'scanning'} />
           </View>
         )}
 
         {/* Processing indicator */}
-        {(status === "processing" || status === "uploading") && (
+        {(status === 'processing' || status === 'uploading') && (
           <View style={styles.center}>
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.processingText}>
-              {status === "processing"
-                ? "Building 3D model from your photos..."
-                : "Uploading to server..."}
+              {status === 'processing'
+                ? 'Building 3D model from your photos...'
+                : 'Uploading to server...'}
             </Text>
           </View>
         )}
 
         {/* Bottom controls */}
         <View style={styles.bottomBar}>
-
           {/* Progress bar when scanning */}
-          {status === "scanning" && (
+          {status === 'scanning' && (
             <ProgressBar
               current={capturedCount}
               total={CONFIG.TOTAL_PHOTOS}
@@ -192,7 +205,7 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
           )}
 
           {/* Upload progress */}
-          {status === "uploading" && (
+          {status === 'uploading' && (
             <ProgressBar
               current={uploadProgress}
               total={100}
@@ -201,18 +214,18 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
           )}
 
           {/* Start button */}
-          {status === "idle" && (
+          {status === 'idle' && (
             <TouchableOpacity
               style={styles.scanBtn}
               onPress={startScan}
               activeOpacity={0.8}
             >
-              <Text style={styles.scanBtnText}>▶  Start Scan</Text>
+              <Text style={styles.scanBtnText}>▶ Start Scan</Text>
             </TouchableOpacity>
           )}
 
           {/* Stop button */}
-          {status === "scanning" && (
+          {status === 'scanning' && (
             <TouchableOpacity
               style={[styles.scanBtn, styles.stopBtn]}
               onPress={() => {
@@ -220,12 +233,12 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
                 if (photosRef.current.length > 5) {
                   processPhotos(photosRef.current);
                 } else {
-                  setStatus("idle");
+                  setStatus('idle');
                 }
               }}
               activeOpacity={0.8}
             >
-              <Text style={styles.scanBtnText}>⏹  Stop & Process</Text>
+              <Text style={styles.scanBtnText}>⏹ Stop & Process</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -235,68 +248,68 @@ const ScannerScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: '#000' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
   center: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 16,
   },
   topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backText: { color: "#fff", fontSize: 16 },
+  backText: { color: '#fff', fontSize: 16 },
   topTitle: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 15,
-    fontWeight: "600",
-    textAlign: "center",
+    fontWeight: '600',
+    textAlign: 'center',
   },
   bottomBar: {
     padding: 30,
     gap: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   scanBtn: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: '#4CAF50',
     paddingVertical: 16,
     borderRadius: 50,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  stopBtn: { backgroundColor: "#f44336" },
-  scanBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  stopBtn: { backgroundColor: '#f44336' },
+  scanBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   processingText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 15,
-    textAlign: "center",
+    textAlign: 'center',
     paddingHorizontal: 40,
   },
-  whiteText: { color: "#fff", fontSize: 16, marginBottom: 16 },
+  whiteText: { color: '#fff', fontSize: 16, marginBottom: 16 },
   btn: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: '#4CAF50',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  btnText: { color: "#fff", fontWeight: "600" },
+  btnText: { color: '#fff', fontWeight: '600' },
 });
 
 export default ScannerScreen;
